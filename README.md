@@ -7,7 +7,7 @@ Data yang dikeluarkan dari microservice Job Listing berupa title pekerjaan, nama
 ## Panduan Akses
 Anda bisa mengakses kedua microservice ini secara live maupun menjalankannya sendiri di komputer anda.
 
-### Akses Live
+### Akses Live Endpoint
 **Pastikan anda mengakses link-link ini melalui HTTP dan bukan HTTPS** <br>
 Bisa melalui: <br>
 Link API STB-deployed Job Listing (Rafi): http://rafi.tugastst.my.id <br>
