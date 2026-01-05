@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  job-app:
+    build: .
+    container_name: job-listing-container
+    ports:
+      - "8880:8880"
+    restart: always

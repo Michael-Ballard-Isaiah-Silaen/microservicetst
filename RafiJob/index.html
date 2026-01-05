@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Listings with Rent Insights</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --rent-color: #059669;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { text-align: center; margin-bottom: 30px; }
+
+        .filters {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            max-width: 1200px;
+            margin: 0 auto 30px auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .search-group { flex: 1; min-width: 300px; }
+        .search-group input {
+            width: 100%; padding: 10px; border: 1px solid var(--border-color);
+            border-radius: 6px; font-size: 16px;
+        }
+
+        .level-group { display: flex; gap: 15px; flex-wrap: wrap; }
+        .level-group label { cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 14px; }
+
+        #jobContainer {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .card h2 { font-size: 18px; margin: 0 0 10px 0; color: var(--primary-color); }
+        .card h3 { font-size: 15px; font-weight: 600; margin: 0 0 15px 0; color: #64748b; }
+        .card p { margin: 5px 0; font-size: 14px; line-height: 1.5; }
+
+        .card .badge {
+            display: inline-block; padding: 4px 8px; border-radius: 4px;
+            font-size: 12px; font-weight: bold; margin-bottom: 10px;
+        }
+        .badge-level { background-color: #dbeafe; color: #1e40af; }
+        .skills { font-style: italic; color: #64748b; margin-bottom: 15px !important; }
+
+        .btn-group { margin-top: 15px; display: flex; gap: 10px; }
+        
+        .btn {
+            flex: 1; padding: 10px; text-align: center; text-decoration: none;
+            border-radius: 6px; font-weight: 500; font-size: 14px; border: none; cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-info { background-color: var(--primary-color); color: white; }
+        .btn-info:hover { background-color: #1d4ed8; }
+
+        .btn-rent { background-color: var(--rent-color); color: white; }
+        .btn-rent:hover { background-color: #047857; }
+
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5); justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background: white; width: 90%; max-width: 500px; padding: 25px;
+            border-radius: 12px; text-align: center; position: relative;
+        }
+        .modal-header h2 { margin-top: 0; color: #1e293b; }
+        .close-btn {
+            position: absolute; top: 15px; right: 20px; font-size: 24px;
+            cursor: pointer; background: none; border: none; color: #64748b;
+        }
+        .rent-price { font-size: 32px; font-weight: bold; color: var(--rent-color); margin: 20px 0; }
+        .rent-meta { color: #64748b; margin-bottom: 20px; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Job Openings</h1>
+
+    <div class="filters">
+        <div class="search-group">
+            <input type="text" id="skillSearch" placeholder="Search skills (e.g., Python, AWS)...">
+        </div>
+        
+        <div class="level-group">
+            <label><input type="radio" name="level" value="All" checked> All Levels</label>
+            <label><input type="radio" name="level" value="Entry level"> Entry Level</label>
+            <label><input type="radio" name="level" value="Mid level"> Mid Level</label>
+            <label><input type="radio" name="level" value="Senior level"> Senior Level</label>
+            <label><input type="radio" name="level" value="Expert/Leader"> Expert/Leader</label>
+        </div>
+    </div>
+
+    <div id="jobContainer"></div>
+
+    <div id="rentModal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal()">&times;</button>
+            <div class="modal-header">
+                <h2 id="modalCityName">City Name</h2>
+            </div>
+            <div id="modalBody">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        let allJobs = [];
+        const RENT_API_URL = 'http://ballard.tugastst.my.id/api/rents';
+        const JOB_API_URL = 'http://rafi.tugastst.my.id/api/jobs';
+        fetchJobs();
+
+        async function fetchJobs() {
+            try {
+                const response = await fetch(JOB_API_URL);
+                allJobs = await response.json();
+                renderJobs(allJobs);
+            } catch (error) {
+                console.error('Error fetching jobs:', error);
+                document.getElementById('jobContainer').innerHTML = 
+                    `<p style="text-align:center; color:red;">Error loading jobs. Ensure server.js is running on 8880. Make sure you are accessing the link using HTTP and NOT HTTPS</p>`;
+            }
+        }
+
+        function renderJobs(jobs) {
+            const container = document.getElementById('jobContainer');
+            container.innerHTML = '';
+
+            if (jobs.length === 0) {
+                container.innerHTML = '<div style="text-align:center; grid-column:1/-1;">No jobs found.</div>';
+                return;
+            }
+
+            jobs.forEach(job => {
+                let link = job.Details;
+                if (!link.startsWith('http')) link = 'https://' + link;
+
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div>
+                        <h2>${job['Position/title']}</h2>
+                        <h3>${job.Company}</h3>
+                        <span class="badge badge-level">${job.Level}</span>
+                        <p><strong>Location:</strong> ${job.City}, ${job['Country Code']}</p>
+                        <p class="skills"><strong>Skills:</strong> ${job.Skills}</p>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-rent" onclick="checkRent('${job.City}')">Check Rent</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        document.getElementById('skillSearch').addEventListener('input', filterJobs);
+        document.querySelectorAll('input[name="level"]').forEach(radio => {
+            radio.addEventListener('change', filterJobs);
+        });
+
+        function filterJobs() {
+            const skillQuery = document.getElementById('skillSearch').value.toLowerCase();
+            const selectedLevel = document.querySelector('input[name="level"]:checked').value;
+
+            const filtered = allJobs.filter(job => {
+                const levelMatch = (selectedLevel === 'All') || (job.Level === selectedLevel);
+                const jobSkills = job.Skills ? job.Skills.toLowerCase() : '';
+                const skillMatch = jobSkills.includes(skillQuery);
+                return levelMatch && skillMatch;
+            });
+            renderJobs(filtered);
+        }
+
+        async function checkRent(city) {
+            const modal = document.getElementById('rentModal');
+            const modalCity = document.getElementById('modalCityName');
+            const modalBody = document.getElementById('modalBody');
+            
+            modal.style.display = 'flex';
+            modalCity.textContent = city;
+            modalBody.innerHTML = '<p>Loading rent prices...</p>';
+
+            try {
+                const response = await fetch(RENT_API_URL);
+                const rentData = await response.json();
+
+                const cityData = rentData.find(r => 
+                    r.RegionName && r.RegionName.toLowerCase() === city.toLowerCase()
+                );
+
+                if (cityData) {
+                    const price = cityData["2025-11-30"];
+                    const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+                    
+                    modalBody.innerHTML = `
+                        <div class="rent-price">${formatter.format(price)}</div>
+                        <p class="rent-meta">Rent in ${cityData.RegionName}, ${cityData.StateName}</p>
+                        <p style="font-size:12px; color:#94a3b8;">Source: michael.tugastst.my.id</p>
+                    `;
+                } else {
+                    modalBody.innerHTML = `
+                        <p style="color: #64748b; margin-top: 20px;">
+                            Rent data not available for <strong>${city}</strong>.
+                        </p>
+                    `;
+                }
+            } catch (error) {
+                console.error("Rent API Error:", error);
+                modalBody.innerHTML = `
+                    <p style="color:red">Failed to connect to Rent Server.</p>
+                    <p>Ensure rent_server.js is running on port 8881.</p>
+                `;
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('rentModal').style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('rentModal')) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>
